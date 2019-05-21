@@ -1,10 +1,13 @@
 package main
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"github.com/apsdehal/go-logger"
 	"github.com/rwcarlsen/goexif/exif"
+	"io"
 	"jpeg-filerenamer/userconfirmation"
 	"os"
 	"path/filepath"
@@ -71,9 +74,16 @@ func checkJPEG(path string, info os.FileInfo, err error) error {
 		} else {
 			dir := strings.TrimSuffix(path, info.Name())
 			newPath := dir + dateString
+
 			// prepend a suffix in case a file with the same name already exists
-			newPath = checkExisting(newPath)
+			newPath = checkExisting(path, newPath)
 			log.Infof("   -> new targeted file name: %s", newPath)
+
+			// edge case: does our file already have the right name?
+			if strings.Compare(path, newPath) == 0 {
+				log.Info("   -> file already has the proper name!")
+				return nil
+			}
 
 			// actual rename
 			err = os.Rename(path, newPath)
@@ -88,7 +98,7 @@ func checkJPEG(path string, info os.FileInfo, err error) error {
 
 	return nil
 }
-func checkExisting(newFileNameBase string) string {
+func checkExisting(previousfilename string, newFileNameBase string) string {
 	suffixNum := 0
 	result := fmt.Sprintf("%s.jpg", newFileNameBase)
 	for {
@@ -96,10 +106,18 @@ func checkExisting(newFileNameBase string) string {
 			break
 		} else {
 			if err == nil {
-				// increase as long as we're alreading having a file with the same props.
-				suffixNum++
-				log.InfoF("   -> file with same date already exists, increased suffix to %d", suffixNum)
-				result = fmt.Sprintf("%s-#%d.jpg", newFileNameBase, suffixNum)
+				// FIXME: compare file hashes here!
+				fileHashesAreEqual := fileHashesAreEqual(previousfilename, result)
+
+				if !fileHashesAreEqual {
+					// increase as long as we're alreading having a file with the same props.
+					suffixNum++
+					log.InfoF("   -> file with same date already exists, increased suffix to %d", suffixNum)
+					result = fmt.Sprintf("%s-#%d.jpg", newFileNameBase, suffixNum)
+				} else {
+					log.InfoF("   -> files are the same!")
+					break
+				}
 			} else {
 				log.ErrorF("Unexpected error: ", err)
 				panic("Exiting...")
@@ -109,6 +127,37 @@ func checkExisting(newFileNameBase string) string {
 	return result
 }
 
+func fileHashesAreEqual(path1 string, path2 string) bool {
+	md5_1, err := md5sum(path1)
+	if err != nil {
+		log.Error("Could not calculate MD5 sum")
+		return false
+	}
+	md5_2, err := md5sum(path2)
+	if err != nil {
+		log.Error("Could not calculate MD5 sum")
+		return false
+	}
+	return strings.Compare(md5_1, md5_2) == 0
+}
+
+func md5sum(filePath string) (result string, err error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+
+	hash := md5.New()
+	_, err = io.Copy(hash, file)
+	if err != nil {
+		return
+	}
+
+	result = hex.EncodeToString(hash.Sum(nil))
+	return
+}
+
 func FormattedDateStringFromJPEGFile(fileName string) (string, error) {
 	// OPEN file
 	fileReader, err := os.Open(fileName)
@@ -116,6 +165,7 @@ func FormattedDateStringFromJPEGFile(fileName string) (string, error) {
 		log.ErrorF("Error opening file", err)
 		return "", err
 	}
+	defer fileReader.Close()
 
 	// DECODE file
 	exif, err := exif.Decode(fileReader)
