@@ -87,6 +87,8 @@ func FormattedDateStringFromJPEGFile(fileName string) (string, error) {
 		log.ErrorF("Error retrieving date from file", err)
 		return "", err
 	}
+	log.InfoF("  -> found time: %v", time)
 
-	return time.Format("yyyy-MM-dd_HH-mm-ss"), nil
+	//return time.Format("yyyy-MM-dd_HH-mm-ss"), nil
+	return time.Format("2006-01-02_15-04-05"), nil
 }
