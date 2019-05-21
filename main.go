@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/apsdehal/go-logger"
 	"github.com/rwcarlsen/goexif/exif"
+	"jpeg-filerenamer/userconfirmation"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,13 +23,20 @@ func main() {
 		panic(err)
 	}
 
-	log.Info("### JPEG file renamer")
+	log.Info("#########################")
+	log.Info("### JPEG file renamer ###")
+	log.Info("#########################")
+	log.Info("")
 
 	flag.StringVar(&basedir, "source", "", "The directory to traverse for JPEG files.")
 	flag.Parse()
 
-	log.Info("Args:")
-	log.InfoF("  -> basedir: %s", basedir)
+	log.ErrorF("WE'RE ABOUT TO RENAME *ALL* JPG/JPEG FILES IN GIVEN DIRECTORY '%s'...", basedir)
+	log.ErrorF(">>>> ARE YOU ***ABSOLUTELY*** SURE? <<<<")
+	if !userconfirmation.AskForConfirmation() {
+		log.Info("Aborted operation. Bye-bye")
+		return
+	}
 
 	// some validation and the final check for a required succeeding "/".
 	if len(basedir) < 1 {
