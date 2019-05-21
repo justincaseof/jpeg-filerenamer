@@ -10,7 +10,6 @@ import (
 )
 
 var basedir string
-var recursive bool
 var count int64
 var log *logger.Logger
 
@@ -25,12 +24,10 @@ func main() {
 	log.Info("### JPEG file renamer")
 
 	flag.StringVar(&basedir, "source", "", "The directory to traverse for JPEG files.")
-	flag.BoolVar(&recursive, "recursive", false, "Include subdirectories recursively. Defaults to false.")
 	flag.Parse()
 
 	log.Info("Args:")
 	log.InfoF("  -> basedir: %s", basedir)
-	log.InfoF("  -> recursive: %t", recursive)
 
 	// some validation and the final check for a required succeeding "/".
 	if len(basedir) < 1 {
