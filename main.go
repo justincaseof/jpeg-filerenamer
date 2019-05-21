@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"github.com/apsdehal/go-logger"
 	"github.com/rwcarlsen/goexif/exif"
 	"os"
@@ -56,7 +57,11 @@ func checkJPEG(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			log.Warning("  -> could not get date from JPEG file!")
 		} else {
-			log.Infof("  -> Found date: %s", dateString)
+			dir := strings.TrimSuffix(path, info.Name())
+			newPath := dir + dateString
+			// prepend a suffix in case a file with the same name already exists
+			newPath = checkExisting(newPath)
+			log.Infof("   -> new targeted file name: %s", newPath)
 			count++
 		}
 
@@ -64,6 +69,26 @@ func checkJPEG(path string, info os.FileInfo, err error) error {
 	}
 
 	return nil
+}
+func checkExisting(newFileNameBase string) string {
+	suffixNum := 0
+	result := fmt.Sprintf("%s.jpg", newFileNameBase)
+	for {
+		if _, err := os.Stat(result); os.IsNotExist(err) {
+			break
+		} else {
+			if err == nil {
+				// increase as long as we're alreading having a file with the same props.
+				suffixNum++
+				log.InfoF("   -> file with same date already exists, increased suffix to %d", suffixNum)
+				result = fmt.Sprintf("%s-#%d.jpg", newFileNameBase, suffixNum)
+			} else {
+				log.ErrorF("Unexpected error: ", err)
+				panic("Exiting...")
+			}
+		}
+	}
+	return result
 }
 
 func FormattedDateStringFromJPEGFile(fileName string) (string, error) {
@@ -89,6 +114,5 @@ func FormattedDateStringFromJPEGFile(fileName string) (string, error) {
 	}
 	log.InfoF("  -> found time: %v", time)
 
-	//return time.Format("yyyy-MM-dd_HH-mm-ss"), nil
 	return time.Format("2006-01-02_15-04-05"), nil
 }
