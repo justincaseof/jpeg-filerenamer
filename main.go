@@ -12,7 +12,8 @@ import (
 )
 
 var basedir string
-var count int64
+var successCount int64
+var errorCount int64
 var log *logger.Logger
 
 func main() {
@@ -53,8 +54,11 @@ func main() {
 
 	filepath.Walk(basedir, checkJPEG)
 
-	log.Infof("------------------------- done.", count)
-	log.Infof("Processed %d files.", count)
+	log.Info("------------------------- done.")
+	log.Infof("Successfully processed %d files.", successCount)
+	log.Infof("Couldn't rename %d files.", errorCount)
+	log.Info("")
+	log.Info("Exiting. Bye-bye")
 }
 
 func checkJPEG(path string, info os.FileInfo, err error) error {
@@ -70,10 +74,16 @@ func checkJPEG(path string, info os.FileInfo, err error) error {
 			// prepend a suffix in case a file with the same name already exists
 			newPath = checkExisting(newPath)
 			log.Infof("   -> new targeted file name: %s", newPath)
-			count++
-		}
 
-		// TODO: rename file
+			// actual rename
+			err = os.Rename(path, newPath)
+			if err == nil {
+				successCount++
+			} else {
+				log.ErrorF("Couldn't rename file: %s", err.Error())
+				errorCount++
+			}
+		}
 	}
 
 	return nil
